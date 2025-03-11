@@ -1,6 +1,35 @@
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
-from typing import TypedDict, Annotated
+from typing import TypedDict
+
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+
+import requests
+
+# Fetch News from NewsAPI
+def fetch_news(topic: str):
+    API_KEY = os.getenv('NEWSAPI_KEY')  # 🔹 Replace with your actual NewsAPI key
+    url = f"https://newsapi.org/v2/everything?q={topic}&sortBy=publishedAt&apiKey={API_KEY}"
+    
+    response = requests.get(url)
+    data = response.json()
+    
+    if "articles" in data and len(data["articles"]) > 0:
+        # Get the first news article
+        article = data["articles"][0]
+        return {
+            "title": article["title"],
+            "content": article["content"],
+            "url": article["url"]
+        }
+    else:
+        return {"title": "No news found", "content": "Try another topic.", "url": ""}
+
 
 llm = ChatOllama(model="llama3",temperature=0.7)
 
@@ -14,10 +43,16 @@ class ResearchState(TypedDict):
 
 graph = StateGraph(ResearchState)
 
-# fetch news agent
+# research agent
 def research(state: ResearchState):
-    response = llm.invoke(f"Find the latest news about {state['topic']}. Provide the full article.")
-    return {"article": response.content}
+    news_data = fetch_news(state["topic"])
+    
+    return {
+        "article": news_data["content"],
+        "article_title": news_data["title"],
+        "article_url": news_data["url"]
+    }
+
 
 # summary agent 
 def summarize_article(state: ResearchState):
@@ -72,17 +107,17 @@ graph.add_edge("generate_report", END)
 research_assistant = graph.compile()
 
 # ✅ Compile and Get the Graph Structure
-# compiled_graph = research_assistant.get_graph()
+compiled_graph = research_assistant.get_graph()
 
 # ✅ Print Nodes
-# print("\n🔗 Nodes in the Graph:")
-# for node in compiled_graph.nodes:
-#    print(f"• {node}")
+print("\n🔗 Nodes in the Graph:")
+for node in compiled_graph.nodes:
+    print(f"• {node}")
 
 # ✅ Print Edges
-# print("\n➡️ Edges in the Graph:")
-# for edge in compiled_graph.edges:
-#    print(f"{edge[0]} → {edge[1]}")
+print("\n➡️ Edges in the Graph:")
+for edge in compiled_graph.edges:
+    print(f"{edge[0]} → {edge[1]}")
 
 # print the graph
 # compiled_graph = research_assistant.get_graph()
@@ -90,13 +125,13 @@ research_assistant = graph.compile()
 # print("Edges: ",compiled_graph.edges)
 
 # ✅ Run a test input
-# test_state = {"topic": "AI in Elementery Education"}
-# result = research_assistant.invoke(test_state)
+test_state = {"topic": "SpaceX"}
+result = research_assistant.invoke(test_state)
 
 # ✅ Print the output to verify execution
-# print("🔍 Research Output:", result.get("article", "No article found"))
-# print("✍ Summary Output:", result.get("summary", "No summary generated"))
-# print("📊 Sentiment Analysis:", result.get("sentiment", "No sentiment detected"))
-# print("✅ Fact-Check:", result.get("fact_check", "No fact-check performed"))
- # print("📃 Final Report:", result.get("final_report", "No report generated"))
+print("🔍 Research Output:", result.get("article", "No article found"))
+print("✍ Summary Output:", result.get("summary", "No summary generated"))
+print("📊 Sentiment Analysis:", result.get("sentiment", "No sentiment detected"))
+print("✅ Fact-Check:", result.get("fact_check", "No fact-check performed"))
+print("📃 Final Report:", result.get("final_report", "No report generated"))
 
