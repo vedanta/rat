@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from rat import research_assistant  # Import your LangGraph assistant
+from rat import research_assistant  # Import LangGraph assistant
 
 app = FastAPI()
 
